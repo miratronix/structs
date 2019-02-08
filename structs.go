@@ -11,7 +11,7 @@ var (
 	// DefaultTagName is the default tag name for struct fields which provides
 	// a more granular to tweak certain structs. Lookup the necessary functions
 	// for more info.
-	DefaultTagName = "structs" // struct's field default tag name
+	DefaultTagName = "json" // struct's field default tag name
 )
 
 // Struct encapsulates a struct type to provide several high level functions
@@ -97,6 +97,7 @@ func (s *Struct) FillMap(out map[string]interface{}) {
 		name := field.Name
 		val := s.value.FieldByName(name)
 		isSubStruct := false
+		isEmbedded := false
 		var finalVal interface{}
 
 		tagName, tagOpts := parseTag(field.Tag.Get(s.TagName))
@@ -123,10 +124,14 @@ func (s *Struct) FillMap(out map[string]interface{}) {
 				v = v.Elem()
 			}
 
-			switch v.Kind() {
-			case reflect.Map, reflect.Struct:
+			if v.Kind() == reflect.Map || v.Kind() == reflect.Struct {
 				isSubStruct = true
 			}
+
+			if v.Kind() == reflect.Struct && field.Anonymous {
+				isEmbedded = true
+			}
+
 		} else {
 			finalVal = val.Interface()
 		}
@@ -139,7 +144,7 @@ func (s *Struct) FillMap(out map[string]interface{}) {
 			continue
 		}
 
-		if isSubStruct && (tagOpts.Has("flatten")) {
+		if (isSubStruct && (tagOpts.Has("flatten"))) || isEmbedded {
 			for k := range finalVal.(map[string]interface{}) {
 				out[k] = finalVal.(map[string]interface{})[k]
 			}
